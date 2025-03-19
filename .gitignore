@@ -169,3 +169,11 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+#Directories to ignore
+/log/*
+/database/*
+
+!/log/.gitkeep
+!/database/.gitkeep
+
