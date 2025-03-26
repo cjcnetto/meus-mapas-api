@@ -8,8 +8,8 @@ class PointOfInterestSchema(BaseSchema):
     id: int = 1
     name: str = "Point of interest"
     description: str = "Point of interest description here"
-    latitude: int = 0
-    longitude: int = 0
+    latitude: float = 0.0
+    longitude: float = 0.0
     creation_date: str = "2021-01-01T00:00:00"
     update_date: str = "2021-01-01T00:00:00"
 
