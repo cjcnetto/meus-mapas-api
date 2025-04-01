@@ -2,76 +2,73 @@ from datetime import datetime
 from typing import List
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
-from models import Session, PointOfInterest
+from exceptions.not_found_exception import NotFoundException
+from exceptions.validation_exception import ValidationException
+from models import PointOfInterest
+from sqlalchemy.orm import Session
 
 class PointOfInterestRepository:
-    """Defines the repository that handles the point of interest data it is responsable to handles with the database"""
+    """Define o acesso a base de dados para entidade de ponto de interesse de um mapa"""
     
-    def find_by_id(self, map_id: int, pointId: int) -> PointOfInterest:
-        """Finds a map by its id"""
-        session = Session()
-        point = session.query(PointOfInterest).filter(PointOfInterest.map_id == map_id, PointOfInterest.id == pointId).first()
-        session.close()
+    def find_by_id(self, session: Session, map_id: int, point_id: int) -> PointOfInterest:
+        """Acha um ponto de interesse baseado nas suas chaves de id do mapa e id do ponto"""
+        point = session.query(PointOfInterest).filter(PointOfInterest.map_id == map_id, PointOfInterest.id == point_id).first()
         return point
     
-    def list_all(self, map_id: int) -> List[PointOfInterest]:
-        """Finds all points of interest in a map"""
-        session = Session()
+    def list_all(self, session: Session, map_id: int) -> List[PointOfInterest]:
+        """Busca todos os pontos de interesse de um mapa"""
         points = session.query(PointOfInterest).filter(PointOfInterest.map_id == map_id).all()
-        session.close()
         return points
     
-    def create(self, mapId: int, name: str, description: str, latitude: float, longitude: float) -> PointOfInterest:
-        """Creates a map"""
-        session = Session()
-        max_id = session.query(func.max(PointOfInterest.id)).filter(PointOfInterest.map_id == mapId).scalar()
+    def create(self, session: Session, map_id: int, name: str, description: str, latitude: float, longitude: float) -> PointOfInterest:
+        """Cria um novo ponto de interesse em um mapa"""
+        self.__validate(map_id, name, description, latitude, longitude)
+        max_id = session.query(func.max(PointOfInterest.id)).filter(PointOfInterest.map_id == map_id).scalar()
         max_id = (max_id or 0) + 1
-        new_point = PointOfInterest(max_id, mapId, name, description, latitude, longitude)
+        new_point = PointOfInterest(max_id, map_id, name, description, latitude, longitude)
         session.add(new_point)
-        try:
-            session.commit()
-        except IntegrityError as e:
-            session.rollback()
-            raise IntegrityError(f"Error to create a new point with mapId ({mapId}).", e)
-        session.refresh(new_point)
-        session.close()
         return new_point
     
-    def update(self, mapId: int, id: int, name: str, description: str, latitude: int, longitude: int) -> PointOfInterest:
-        """Updates a map"""
-        if(name == None or name == ""):
-            raise ValueError("Name is required.")
-        if(latitude == None or latitude == ""):
-            raise ValueError("Latitude is required.")
-        if(longitude == None or longitude == ""):
-            raise ValueError("Longitude is required.")
-        
-        session = Session()
-        point_of_interest_to_update = session.query(PointOfInterest).filter(PointOfInterest.map_id == mapId, PointOfInterest.id == id).first()
+    def update(self, session: Session, map_id: int, id: int, name: str, description: str, latitude: int, longitude: int) -> PointOfInterest:
+        """Atualiza um ponto de interesse no mapa"""
+        self.__validate(map_id, name, description, latitude, longitude)
+    
+        point_of_interest_to_update = session.query(PointOfInterest).filter(PointOfInterest.map_id == map_id, PointOfInterest.id == id).first()
         if(point_of_interest_to_update == None):
-            raise ValueError(f"Map with id '{mapId}' and point of interest with id '{id}' not found.")
+            raise NotFoundException(f"Ponto de interesse não encontrado")
         point_of_interest_to_update.name = name
         point_of_interest_to_update.description = description
         point_of_interest_to_update.latitude = latitude
         point_of_interest_to_update.longitude = longitude
-        point_of_interest_to_update.updated_at = datetime.now()
-        try:
-            session.commit()
-        except IntegrityError as e:
-            session.rollback()
-            raise IntegrityError(f"Error to create a new map with name ({name}).", e)
-        session.refresh(point_of_interest_to_update)
-        session.close()
         return point_of_interest_to_update
-    
-    def delete(self, mapId: int, id: int) -> str:
-        """Deletes a map and returns the name of the maps deleted"""
-        session = Session()
-        point_of_interest_to_delete = session.query(PointOfInterest).filter(PointOfInterest.map_id == mapId, PointOfInterest.id == id).first()
+
+    def delete_by_map_id(self, session: Session, map_id: int) -> int:
+        """Remove todos os pontos de interesse de um mapa e retorna o nome do mapa que foi removido"""
+        points_of_interest_to_delete = session.query(PointOfInterest).filter(PointOfInterest.map_id == map_id).all()
+        for point in points_of_interest_to_delete:
+            session.delete(point)
+        return len(points_of_interest_to_delete)
+
+    def delete(self, session: Session, map_id: int, id: int) -> str:
+        """Remove um ponto de interesse do mapa"""
+        point_of_interest_to_delete = session.query(PointOfInterest).filter(PointOfInterest.map_id == map_id, PointOfInterest.id == id).first()
         if(point_of_interest_to_delete == None):
-            raise ValueError(f"Map with id '{mapId}' and point of interest with id '{id}' not found.")
+            raise NotFoundException(f"Ponto de interesse não encontrado")
         name = point_of_interest_to_delete.name
         session.delete(point_of_interest_to_delete)
-        session.commit()
-        session.close()
         return name
+    
+    def __validate(self, map_id: int, name: str, description: str, latitude: float, longitude: float):
+        """Faz as validações do ponto de interesse"""
+        if(map_id == None or map_id < 0):
+            raise ValidationException(f"O mapa dono do ponto de interesse não foi informado")
+        if(name == None or name == ""):
+            raise ValidationException(f"O nome do ponto não pode ser vazio")
+        if(len(name) > 256):
+            raise ValidationException(f"O nome do ponto não pode ter mais que 256 caracteres")
+        if(len(description)>2000):
+            raise ValidationException(f"A descrição do ponto não pode ter mais que 2000 caracteres")
+        if(latitude == None):
+            raise ValidationException(f"Latitude do ponto não pode ser vazia")
+        if(longitude == None):
+            raise ValidationException(f"Longitude do ponto não pode ser vazia")

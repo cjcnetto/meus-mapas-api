@@ -1,6 +1,10 @@
 from schemas.base import BaseSchema
 
 class DelSchema(BaseSchema):
-    """ Defines the schema for the delete endpoint"""
-    mesage: str = "Deleted successuful"
-    name: str =  "The name of the entity that was deleted"
+    """ 
+        Define o esquema de resposta para a deleção de um objeto
+        message - Mensagem de sucesso ou erro
+        name - Nome do objeto removido
+    """
+    message: str = "Removido com sucesso"
+    name: str =  "Nome do objeto removido"

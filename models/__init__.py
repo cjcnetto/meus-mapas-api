@@ -1,6 +1,7 @@
+from datetime import datetime
 from sqlalchemy_utils import database_exists, create_database
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 import os
 
 # importando os elementos definidos no modelo
@@ -29,3 +30,11 @@ if not database_exists(engine.url):
 
 # cria as tabelas do banco, caso não existam
 Base.metadata.create_all(engine)
+
+@event.listens_for(Map, "before_update")
+def receive_before_update(mapper, connection, target):
+    target.update_date = datetime.now()
+
+@event.listens_for(PointOfInterest, "before_update")
+def receive_before_update(mapper, connection, target):
+    target.update_date = datetime.now()

@@ -1,2 +1,3 @@
 from repositories.map_repository import MapRepository
 from repositories.point_of_interest_repository import PointOfInterestRepository
+from exceptions.base_my_map_exception import BaseMyMapException

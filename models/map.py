@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String, Integer, DateTime
+from sqlalchemy.orm import relationship
 from datetime import datetime
 
 from  models import Base
@@ -11,10 +12,12 @@ class Map(Base):
     description = Column(String(2000), unique=False)
     creation_date = Column(DateTime, default=lambda: datetime.now())
     update_date = Column(DateTime, default=lambda: datetime.now())
+
+    points = relationship("PointOfInterest")
     
     def __init__(self, name:str, description:str):
         """
-        Creates a new Map
+        Tabela que controla os mapas 
 
         Arguments:
             name: Name of the map it must be unique
@@ -22,4 +25,3 @@ class Map(Base):
         """
         self.name = name
         self.description = description
-

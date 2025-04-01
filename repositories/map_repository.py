@@ -1,80 +1,63 @@
-from datetime import datetime
 from typing import List
-from sqlalchemy.exc import IntegrityError
-from models import Session, Map
+from exceptions.not_found_exception import NotFoundException
+from exceptions.validation_exception import ValidationException
+from models import Map
+from sqlalchemy.orm import Session
 
 class MapRepository:
-    """Defines the repository that handles the map data it is responsable to handles with the database"""
+    """Define o acesso a base de dados para a entidade de mapa"""
     
-    def find_by_id(self, id: int) -> Map:
-        """Finds a map by its id"""
-        session = Session()
+    def find_by_id(self, session: Session, id: int) -> Map:
+        """Busca um mapa pelo seu ID"""
         map = session.query(Map).filter(Map.id == id).first()
-        session.close()
         return map
     
-    def find_by_name(self, name: str) -> Map:
-        """Finds a map by its name"""
-        session = Session()
+    def find_by_name(self, session: Session, name: str) -> Map:
+        """Busca um mapa pelo seu nome"""
         map = session.query(Map).filter(Map.name == name).first()
-        session.close()
         return map
 
-    def list_all(self) -> List[Map]:
-        """Finds all maps"""
-        session = Session()
+    def list_all(self, session: Session) -> List[Map]:
+        """Busca todos os mapas cadastrados na base"""
         maps = session.query(Map).all()
-        session.close()
         return maps
     
-    def create(self, name: str, description: str) -> Map:
-        """Creates a map"""
+    def create(self, session: Session, name: str, description: str) -> Map:
+        """Cria um mapa novo"""
         self.__validate_name(name)
-        session = Session()
+        self.__validate_description(description)
         new_map = Map(name=name, description=description)
         session.add(new_map)
-        try:
-            session.commit()
-        except IntegrityError as e:
-            session.rollback()
-            raise IntegrityError(f"Error to create a new map with name ({map.name}).", e)
-        session.refresh(new_map)
-        session.close()
         return new_map
     
-    def update(self, id: str, name: str, description: str) -> Map:
-        """Updates a map"""
+    def update(self, session: Session, id: int, name: str, description: str) -> Map:
+        """Atualiza um mapa existente"""
         self.__validate_name(name)
-
-        session = Session()
+        self.__validate_description(description)
         map_to_update = session.query(Map).filter(Map.id == id).first()
         if(map_to_update == None):
-            raise ValueError(f"Map with id '{map.id}' not found.")
+            raise NotFoundException(f"Mapa não encontrado")
         map_to_update.name = name
         map_to_update.description = description
-        map_to_update.updated_at = datetime.now()
-        try:
-            session.commit()
-        except IntegrityError as e:
-            session.rollback()
-            raise IntegrityError(f"Error to create a new map with name ({map.name}).", e)
-        session.refresh(map_to_update)
-        session.close()
         return map_to_update
     
-    def delete(self, id: int) -> str:
-        """Deletes a map and returns the name of the maps deleted"""
-        session = Session()
+    def delete(self, session: Session, id: int) -> str:
+        """Remove um mapa existente e retorna o nome do mapa que foi removido"""
         map_to_delete = session.query(Map).filter(Map.id == id).first()
         if(map_to_delete == None):
-            raise ValueError(f"Map with id '{id}' not found.")
+            raise NotFoundException(f"Mapa não encontrado")
         name = map_to_delete.name
         session.delete(map_to_delete)
-        session.commit()
-        session.close()
         return name
     
     def __validate_name(self, name:str):
-        """Validates the not null constraint of the map name"""
+        """Valida as constraints do nome do mapa não deve ser maior que 256 e não ser vazio"""
         if(name == None or name == ""):
-            raise ValueError(f"The map name must not be empty to create a new map, receveied name '{name}'")
+            raise ValidationException(f"O nome do mapa não pode ser vazio")
+        if(len(name) > 256):
+            raise ValidationException(f"O nome do mapa não pode ter mais que 256 caracteres")
+    
+    def __validate_description(self, description:str):
+        """Validates the size of the description"""
+        if(len(description)>2000):
+            raise ValidationException(f"A descrição do mapa não pode ter mais que 2000 caracteres")
