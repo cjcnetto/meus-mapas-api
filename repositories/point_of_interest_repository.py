@@ -10,18 +10,29 @@ from sqlalchemy.orm import Session
 class PointOfInterestRepository:
     """Define o acesso a base de dados para entidade de ponto de interesse de um mapa"""
     
-    def find_by_id(self, session: Session, map_id: int, point_id: int) -> PointOfInterest:
-        """Acha um ponto de interesse baseado nas suas chaves de id do mapa e id do ponto"""
-        point = session.query(PointOfInterest).filter(PointOfInterest.map_id == map_id, PointOfInterest.id == point_id).first()
-        return point
-    
     def list_all(self, session: Session, map_id: int) -> List[PointOfInterest]:
-        """Busca todos os pontos de interesse de um mapa"""
+        """
+        Busca todos os pontos de interesse de um mapa
+        Arguments:
+            session: sessão de acesso ao banco de dados
+            map_id: id do mapa a ser buscado
+        Returns: Lista de pontos de interesse encontrados
+        """
         points = session.query(PointOfInterest).filter(PointOfInterest.map_id == map_id).all()
         return points
     
     def create(self, session: Session, map_id: int, name: str, description: str, latitude: float, longitude: float) -> PointOfInterest:
-        """Cria um novo ponto de interesse em um mapa"""
+        """
+        Cria um novo ponto de interesse em um mapa
+        Arguments:
+            session: sessão de acesso ao banco de dados
+            map_id: id do mapa dono do ponto de interesse
+            name: nome do ponto de interesse a ser criado
+            description: descrição do ponto de interesse a ser criado
+            latitude: coordenada de latitude em WGS64 do ponto de interesse
+            longitude: coordenada de longitude em WGS64 do ponto de interesse
+        Returns: Ponto de interesse criado
+        """
         self.__validate(map_id, name, description, latitude, longitude)
         max_id = session.query(func.max(PointOfInterest.id)).filter(PointOfInterest.map_id == map_id).scalar()
         max_id = (max_id or 0) + 1
@@ -30,7 +41,18 @@ class PointOfInterestRepository:
         return new_point
     
     def update(self, session: Session, map_id: int, id: int, name: str, description: str, latitude: int, longitude: int) -> PointOfInterest:
-        """Atualiza um ponto de interesse no mapa"""
+        """
+        Atualiza um ponto de interesse no mapa
+        Arguments:
+            session: sessão de acesso ao banco de dados
+            map_id: id do mapa dono do ponto de interesse
+            id: id do ponto de interesse a ser atualizado
+            name: nome do ponto de interesse a ser atualizado
+            description: descrição do ponto de interesse a ser atualizado
+            latitude: coordenada de latitude em WGS64 do ponto de interesse
+            longitude: coordenada de longitude em WGS64 do ponto de interesse
+        Returns: Ponto de interesse atualizado
+        """
         self.__validate(map_id, name, description, latitude, longitude)
     
         point_of_interest_to_update = session.query(PointOfInterest).filter(PointOfInterest.map_id == map_id, PointOfInterest.id == id).first()
@@ -43,7 +65,13 @@ class PointOfInterestRepository:
         return point_of_interest_to_update
 
     def delete_by_map_id(self, session: Session, map_id: int) -> int:
-        """Remove todos os pontos de interesse de um mapa e retorna o nome do mapa que foi removido"""
+        """
+        Remove todos os pontos de interesse de um mapa e retorna o nome do mapa que foi removido
+        Arguments:
+            session: sessão de acesso ao banco de dados
+            map_id: id do mapa dono do ponto de interesse
+        Returns: Nome do mapa removido
+        """
         points_of_interest_to_delete = session.query(PointOfInterest).filter(PointOfInterest.map_id == map_id).all()
         for point in points_of_interest_to_delete:
             session.delete(point)
