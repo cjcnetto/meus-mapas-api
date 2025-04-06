@@ -7,19 +7,19 @@ from schemas import *
 from flask_cors import CORS
 from services import map_service
 
-info = Info(title="My Maps API", version="1.0.0")
+info = Info(title="Meus Mapas API", version="1.0.0")
 app = OpenAPI(__name__, info=info)
 CORS(app)
 
 # definindo tags
-home_tag = Tag(name="Documentação", description="Seleção de documentação: Swagger, Redoc ou RapiDoc")
+home_tag = Tag(name="Documentação", description="Documentação em swagger")
 map_tag = Tag(name="Map", description="Conjunto de operações para a CRUD de mapas")
 point_of_interest_tag = Tag(name="Point of Interest", description="Conjunto de operações para a CRUD dos pontos de interesse de um mapa")
 
 @app.get('/', tags=[home_tag])
 def home():
     """Redireciona para /openapi, tela que permite a escolha do estilo de documentação."""
-    return redirect('/openapi')
+    return redirect('/openapi/swagger')
 
 @app.get('/maps', tags=[map_tag],
          responses={"200": ListMapResponse, "404": ErrorSchema})
@@ -91,7 +91,6 @@ def __treat_error(e):
     error = ErrorSchema(message=message).to_json()
     if(isinstance(e, NotFoundException)):
         return error, 404
-    if(isinstance(e, ValidationException)):
-        print('DEU RUIM2')        
+    if(isinstance(e, ValidationException)):  
         return error, 409
     return error, 500
