@@ -3,9 +3,10 @@ from typing import List
 
 from schemas.base import BaseSchema
 
+
 class MapSchema(BaseSchema):
     """
-        Representa um mapa 
+        Representa um mapa
         id - Identificador do mapa
         name - Nome do mapa
         points - Quantidade de pontos de interesse do mapa
@@ -20,9 +21,11 @@ class MapSchema(BaseSchema):
     creation_date: str = "2021-01-01T00:00:00"
     update_date: str = "2021-01-01T00:00:00"
 
+
 class FindMapRequest(BaseModel):
     """Representa a requisição para buscar um mapa"""
     id: int = 1
+
 
 class UpsertMapRequest(BaseModel):
     """
@@ -35,14 +38,16 @@ class UpsertMapRequest(BaseModel):
     name: str = "Mapa"
     description: str = "Descrição do mapa aqui"
 
+
 class UpsertMapResponse(BaseSchema):
     """
         Representa a resposta para criar ou atualizar um mapa
         map - Mapa criado ou atualizado
         message - Mensagem de sucesso ou erro
-    """ 
+    """
     message: str = "Mapa criado com sucesso"
     map: MapSchema
+
 
 class ListMapResponse(BaseSchema):
     """

@@ -1,37 +1,61 @@
+from datetime import datetime
 from logging import Logger
 from typing import List
 from exceptions.not_found_exception import NotFoundException
 from exceptions.validation_exception import ValidationException
 from models.point_of_interest import PointOfInterest
-from repositories import MapRepository, PointOfInterestRepository, BaseMyMapException
-from schemas import *
+from services.prediction_service import ShootingSeverityPredictionService
+from repositories import (
+    MapRepository,
+    PointOfInterestRepository,
+    BaseMyMapException,
+)
+from schemas import (
+    ListMapResponse,
+    UpsertMapRequest,
+    UpsertMapResponse,
+    FindMapRequest,
+    DelSchema,
+    MapSchema,
+    ListPointOfInterestResponse,
+    UpsertPointOfInterestRequest,
+    UpsertPointOfInterestResponse,
+    FindPointOfInterestRequest,
+    PointOfInterestSchema,
+)
 from models import Map, Session
+
 
 class MapService:
     """Serviço que trata as regras de negócio para o mapa, com seus pontos"""
-    def __init__(self, map_repository: MapRepository, point_of_interest_repository: PointOfInterestRepository, logger: Logger):
+    def __init__(self,
+                 prediction: ShootingSeverityPredictionService,
+                 map_repository: MapRepository,
+                 point_of_interest_repository: PointOfInterestRepository,
+                 logger: Logger):
+        self.prediction = prediction
         self.map_repository = map_repository
         self.point_of_interest_repository = point_of_interest_repository
         self.logger = logger
 
     def list_all_maps(self) -> ListMapResponse:
         """Retorna todos os mapas cadastrados na base"""
-        self.logger.info(f"get maps called")
+        self.logger.info("get maps called")
         session = Session()
         try:
             maps = self.map_repository.list_all(session)
             mapsSchema = []
             if not maps:
-                self.logger.info(f"No maps found")
+                self.logger.info("No maps found")
                 message = "Nenhum mapa encontrado"
-            else:            
-                self.logger.info(f"%d Maps found" % len(maps))
+            else:
+                self.logger.info("%d Maps found" % len(maps))
                 message = f"Total de mapas encontrados {len(maps)}"
                 for map in maps:
                     mapsSchema.append(self.__convert_map_to_schema(map))
             return ListMapResponse(maps=mapsSchema, message=message)
-        except Exception as e:
-            self.logger.error(f"Cannot get maps", exc_info=True)
+        except Exception:
+            self.logger.error("Cannot get maps", exc_info=True)
             raise Exception("Houve um erro inesperado ao buscar os mapas")
         finally:
             session.close()
@@ -43,54 +67,74 @@ class MapService:
         action = ""
         session = Session()
         try:
-            #Checa se o mapa já existe
-            if(id != None and id >= 0):
+            # Checa se o mapa já existe
+            if (id is not None and id >= 0):
                 self.logger.info(f"Updating map '{id}'")
                 action = "update"
-                map = self.map_repository.update(session, request.id, request.name, request.description)
+                map = self.map_repository.update(
+                    session, request.id, request.name, request.description)
             else:
                 map = self.map_repository.find_by_name(session, request.name)
-                if(map != None):
-                    self.logger.info(f"Map '{request.name}' already exists") 
-                    raise ValidationException(message=f"Mapa com o nome {request.name} já existe")
-                self.logger.info(f"Creating new map '{request.name}', '{request.description}'")
-                action = "create"                
-                map = self.map_repository.create(session, request.name, request.description)
+                if (map is not None):
+                    self.logger.info(f"Map '{request.name}' already exists")
+                    raise ValidationException(
+                        message=f"Mapa com o nome {request.name} já existe")
+                self.logger.info(
+                    (
+                        f"Creating new map '{request.name}', "
+                        f"'{request.description}'"
+                    )
+                )
+                action = "create"
+                map = self.map_repository.create(
+                    session, request.name, request.description)
             session.commit()
             mapSchema = self.__convert_map_to_schema(map)
-            return UpsertMapResponse(message=f"Mapa criado com sucesso", map=mapSchema)
+            return UpsertMapResponse(
+                message="Mapa criado com sucesso", map=mapSchema)
         except BaseMyMapException as e:
-            self.logger.error(f"Cannot get maps", exc_info=True)
+            self.logger.error(
+                "Cannot get maps", exc_info=True)
             session.rollback()
             raise e
-        except Exception as e:
-            self.logger.error(f"Cannot {action} map '{request.name}', '{request.description}'",exc_info=True)
+        except Exception:
+            self.logger.error(
+                (
+                    f"Cannot {action} map '{request.name}', "
+                    f"'{request.description}'"
+                ),
+                exc_info=True)
             session.rollback()
-            actionText = "criar" if(action == "create") else "atualizar"
+            actionText = "criar" if (action == "create") else "atualizar"
             raise Exception(f"Não foi possível {actionText} o mapa")
         finally:
             session.close()
-            
+
     def delete(self, id_schema: FindMapRequest) -> DelSchema:
         """Remove um mapa"""
         self.logger.info(f"delete map called with id {id_schema.id}")
-        if(id_schema.id == None):
+        if (id_schema.id is None):
             self.logger.error("delete_map called without id")
             raise ValidationException("O id deve ser informado")
         session = Session()
         try:
-            points = self.point_of_interest_repository.delete_by_map_id(session, id_schema.id)
+            points = self.point_of_interest_repository.delete_by_map_id(
+                session, id_schema.id)
             name = self.map_repository.delete(session, id_schema.id)
             session.commit()
-            message = f"Mapa removido com sucesso. Com {points} pontos de interesse removidos."
+            message = (
+                f"Mapa removido com sucesso. Com {points} pontos de interesse "
+                "removidos."
+            )
             return DelSchema(message=message, name=name)
         except BaseMyMapException as e:
-            self.logger.error(f"Cannot delete maps", exc_info=True)
+            self.logger.error("Cannot delete maps", exc_info=True)
             session.rollback()
-            raise e        
-        except Exception as e:
+            raise e
+        except Exception:
             session.rollback()
-            self.logger.error(f"Cannot delete map '{id_schema.id}'",exc_info=True)
+            self.logger.error(
+                f"Cannot delete map '{id_schema.id}'", exc_info=True)
             message = "Erro ao remover mapa"
             raise Exception(message)
         finally:
@@ -98,103 +142,180 @@ class MapService:
 
     def __convert_map_to_schema(self, map: Map):
         return MapSchema(
-            id=map.id, 
-            name=map.name, 
-            description=map.description, 
-            points= len(map.points),
-            creation_date=map.creation_date.strftime("%Y-%m-%d %H:%M:%S"), 
+            id=map.id,
+            name=map.name,
+            description=map.description,
+            points=len(map.points),
+            creation_date=map.creation_date.strftime("%Y-%m-%d %H:%M:%S"),
             update_date=map.update_date.strftime("%Y-%m-%d %H:%M:%S"))
-    
-    def list_all_points(self, findMap: FindMapRequest) -> ListPointOfInterestResponse:
-        """Retorna todos os pontos de interesse cadastrados para um mapa na base"""
-        self.logger.info(f"list all points of interest called with map id {findMap.id}")
+
+    def list_all_points(
+            self,
+            findMap: FindMapRequest
+            ) -> ListPointOfInterestResponse:
+        """
+        Retorna todos os pontos de interesse cadastrados para um mapa na base
+        """
+        self.logger.info(
+            f"list all points of interest called with map id {findMap.id}")
         try:
             session = Session()
             map = self.map_repository.find_by_id(session, findMap.id)
-            if(map == None):   
+            if (map is None):
                 self.logger.error(f"Map '{findMap.id}' not found")
                 raise NotFoundException("Map não encontrado para os pontos")
-            points = self.point_of_interest_repository.list_all(session, findMap.id)
+            points = self.point_of_interest_repository.list_all(
+                session, findMap.id)
             if not points or len(points) == 0:
-                self.logger.info(f"No points of interest found")
-                return ListPointOfInterestResponse(map_name=map.name, map_description=map.description,message="Mapa sem pontos", points=[])
+                self.logger.info("No points of interest found")
+                return ListPointOfInterestResponse(
+                    map_name=map.name,
+                    map_description=map.description,
+                    message="Mapa sem pontos", points=[])
             else:
-                self.logger.info(f"%d Map {map.name} desc: {map.description} Points found " % len(points))
-                return self.__convert_points_to_schema(map.name, map.description, points, message=f"Pontos encontrados {len(points)}")
-        except Exception as e:
-            self.logger.error(f"Cannot list points of interest",exc_info=True)
-            raise Exception("Houve um erro inesperado ao buscar os pontos de interesse")
+                self.logger.info(
+                    (
+                        "%d Map %s desc: %s Points found "
+                        % (len(points), map.name, map.description)
+                    )
+                )
+                return self.__convert_points_to_schema(
+                    map.name,
+                    map.description,
+                    points,
+                    message=f"Pontos encontrados {len(points)}")
+        except Exception:
+            self.logger.error("Cannot list points of interest", exc_info=True)
+            raise Exception(
+                "Houve um erro inesperado ao buscar os pontos de interesse")
         finally:
             session.close()
 
-    def upsert_point(self, request: UpsertPointOfInterestRequest) -> UpsertPointOfInterestResponse:
+    def upsert_point(
+            self,
+            request: UpsertPointOfInterestRequest
+            ) -> UpsertPointOfInterestResponse:
         """Atualiza ou cria um ponto de interesse no mapa"""
         id = request.id
         self.logger.info(f"upsert point called {id}")
         session = Session()
         try:
             map = self.map_repository.find_by_id(session, request.map_id)
-            if(map == None):   
+            if (map is None):
                 self.logger.error(f"Map '{request.map_id}' not found")
                 raise ValueError("Map not found")
             action = ""
+            self.logger.info(
+                f"Operation date {request.operation_date}")
+            operation_date = datetime.strptime(
+                request.operation_date, "%Y-%m-%dT%H:%M")
+            shooting_severity = self.prediction.predict(
+                request.latitude, request.longitude, operation_date)
+            self.logger.info(
+                f"Predicted shooting severity: {shooting_severity}")
             point = None
-            if(id != None and id >= 0):
+            if (id is not None and id >= 0):
                 action = "update"
                 self.logger.info(f"Updating point '{request.map_id}'-'{id}'")
-                point = self.point_of_interest_repository.update(session, request.map_id, request.id, request.name, request.description, request.latitude, request.longitude)
+                point = self.point_of_interest_repository.update(
+                    session,
+                    request.map_id,
+                    request.id,
+                    request.name,
+                    request.description,
+                    request.latitude,
+                    request.longitude,
+                    operation_date,
+                    shooting_severity
+                    )
             else:
                 action = "create"
-                self.logger.info(f"Creating new point MAP: '{request.map_id}' - '{request.name}', '{request.description}' lat: '{request.latitude}' long: '{request.longitude}'")
-                point = self.point_of_interest_repository.create(session, request.map_id, request.name, request.description, request.latitude, request.longitude)
+                self.logger.info(
+                    (
+                        (
+                            f"Creating new point MAP: '{request.map_id}' - "
+                            f"'{request.name}', '{request.description}' "
+                            f"lat: '{request.latitude}' "
+                            f"long: '{request.longitude}'"
+                        )
+                    )
+                )
+                point = self.point_of_interest_repository.create(
+                    session,
+                    request.map_id,
+                    request.name,
+                    request.description,
+                    request.latitude,
+                    request.longitude,
+                    operation_date,
+                    shooting_severity
+                    )
             session.commit()
-            pointSchema = self.__convert_point_to_schema(point)            
-            return UpsertPointOfInterestResponse(message=f"Ponto criado com sucesso", point_of_interest=pointSchema)
+            pointSchema = self.__convert_point_to_schema(point)
+            return UpsertPointOfInterestResponse(
+                message="Ponto criado com sucesso",
+                point_of_interest=pointSchema)
         except BaseMyMapException as e:
-            self.logger.error(f"Cannot get maps", exc_info=True)
+            self.logger.error("Cannot get maps", exc_info=True)
             session.rollback()
             raise e
-        except Exception as e:
-            self.logger.error(f"Cannot {action} point '{request.name}', '{request.description}'",exc_info=True)
+        except Exception:
+            self.logger.error(
+                (
+                    f"Cannot {action} point '{request.name}', "
+                    f"'{request.description}'"
+                ),
+                exc_info=True)
             session.rollback()
-            action = "criar" if(action == "create") else "atualizar"
+            action = "criar" if (action == "create") else "atualizar"
             raise Exception(f"Não foi possível {action} o ponto de interesse")
         finally:
             session.close()
-        
+
     def delete_point(self, id_schema: FindPointOfInterestRequest) -> DelSchema:
         """Remove um ponto de interesse pelo seu id de mapa e seu id"""
         map_id = getattr(id_schema, 'map_id', None)
-        self.logger.info(f"delete point called with id {map_id} and point id {id_schema.id}")
-        if(map_id == None):
+        self.logger.info(
+            (
+                f"delete point called with id {map_id} "
+                f"and point id {id_schema.id}"
+            )
+        )
+        if (map_id is None):
             self.logger.error("delete_map called without id")
             raise ValueError("Map not found")
         session = Session()
         name = None
-        message = None    
-        try:    
+        message = None
+        try:
             map = self.map_repository.find_by_id(session, map_id)
-            if(map == None):
+            if (map is None):
                 self.logger.error(f"Map '{map_id}' not found")
                 raise ValueError("Map not found")
-            name = self.point_of_interest_repository.delete(session, map_id, id_schema.id)
+            name = self.point_of_interest_repository.delete(
+                session, map_id, id_schema.id)
             session.commit()
             name = f"{map.name} - {name}"
             message = "Ponto removido com sucesso."
             return DelSchema(message=message, name=name)
         except BaseMyMapException as e:
-            self.logger.error(f"Cannot delete maps", exc_info=True)
+            self.logger.error("Cannot delete maps", exc_info=True)
             session.rollback()
-            raise e        
-        except Exception as e:
+            raise e
+        except Exception:
             session.rollback()
-            self.logger.error(f"Cannot delete map '{id_schema.id}'",exc_info=True)
+            self.logger.error(
+                f"Cannot delete map '{id_schema.id}'",
+                exc_info=True)
             message = "Erro ao remover mapa"
             raise Exception(message)
         finally:
             session.close()
 
     def __convert_point_to_schema(self, point: PointOfInterest):
+        operation_date = None
+        if (point.operation_date is not None):
+            operation_date = point.operation_date.strftime("%Y-%m-%d %H:%M:%S")
         return PointOfInterestSchema(
             map_id=point.map_id,
             id=point.id,
@@ -202,11 +323,17 @@ class MapService:
             description=point.description,
             latitude=point.latitude,
             longitude=point.longitude,
-            creation_date=point.creation_date.strftime("%Y-%m-%d %H:%M:%S"), 
-            update_date=point.update_date.strftime("%Y-%m-%d %H:%M:%S")
+            creation_date=point.creation_date.strftime("%Y-%m-%d %H:%M:%S"),
+            update_date=point.update_date.strftime("%Y-%m-%d %H:%M:%S"),
+            shooting_severity=point.shooting_severity,
+            operation_date=operation_date
         )
 
-    def __convert_points_to_schema(self, map_name: str, map_description: str, points: List[PointOfInterest], message: str):
+    def __convert_points_to_schema(self,
+                                   map_name: str,
+                                   map_description: str,
+                                   points: List[PointOfInterest],
+                                   message: str):
         return ListPointOfInterestResponse(
             message=message,
             map_name=map_name,

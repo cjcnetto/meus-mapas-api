@@ -1,5 +1,6 @@
 from schemas.base import BaseSchema
 
+
 class ErrorSchema(BaseSchema):
     """
         Define o esquema de erro para a API
