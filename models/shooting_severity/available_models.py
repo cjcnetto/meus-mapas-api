@@ -14,6 +14,13 @@ class AvailableModels:
         allDataPath='./MachineLearning/data/tiroteios_RJ.csv',
         holdoutDataPath='./MachineLearning/data/test_completo_cart_orig.csv')
 
+    METADATA_MODEL_CART_NORM = FogoCruzadoMetadata(
+        name='DecisionTreeWithUnderNormData',
+        path='./MachineLearning/model/victims_pred_model_cart.pkl',
+        allDataPath='./MachineLearning/data/tiroteios_RJ.csv',
+        holdoutDataPath='./MachineLearning/data/test_victims_cart.csv',
+        scalerPath='./MachineLearning/scaler/minmax_scaler_victims.pkl')
+
     METADATA_MODEL_RF = FogoCruzadoMetadata(
         name='RandomForestWithUnderSamplingToSameSize',
         path='./MachineLearning/model/model_RF.pkl',

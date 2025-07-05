@@ -1,11 +1,11 @@
-# MEUS-MAPS-API
+# MEUS-MAPAS-API
 
 Este é o projeto que se encontra o MVP da disciplina  **Desenvolvimento Qualidade de Software, Segurança e Sistemas Inteligentes** 
 esse projeto é uma continuação do projeto do Fullstack Básico.
 
 ## Objetivo 
-- Inicialmente o é criar mapas e seus pontos de interesse georeferenciados. 
-- Foi adicionado que dado um tiroteio um momento em que aconteça um tiroteio com ação policial no ponto de interesse a possibilidade de haver vítimas feridas, mortes ou não haver vítimas.
+- Inicialmente o objetivo é criar mapas e seus pontos de interesse georeferenciados. 
+- Foi adicionado que dado um tiroteio, com ação policial em um determinado dia, mês ano, e hora, no ponto de interesse é informado a possibilidade de haver vítimas feridas, mortes ou não haver vítimas.
 
 ## Arquitetura
 

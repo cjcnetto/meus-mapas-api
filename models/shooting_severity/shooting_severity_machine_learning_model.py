@@ -63,3 +63,19 @@ class ShootingSeverityMachineLearnModel:
         X = array[:, 0:5]
         y = array[:, 5]
         return X, y
+
+    def hasScaler(self) -> bool:
+        """
+        Verifica se o modelo possui um scaler associado.
+        """
+        return self.metadata.scalerPath is not None
+
+    def load_scaler(self):
+        """
+        Carrega o scaler associado ao modelo, se existir.
+        """
+        if self.hasScaler():
+            with open(self.metadata.scalerPath, 'rb') as file:
+                return pickle.load(file)
+        else:
+            raise ValueError("Scaler não está disponível para este modelo.")

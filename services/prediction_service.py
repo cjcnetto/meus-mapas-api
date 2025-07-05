@@ -7,7 +7,9 @@ from models.shooting_severity.shooting_severity_machine_learning_model import (
 
 class ShootingSeverityPredictionService:
 
-    def __init__(self, machineLearningModel: ShootingSeverityMachineLearnModel):
+    def __init__(
+            self,
+            machineLearningModel: ShootingSeverityMachineLearnModel):
         """Inicializa o modelo"""
         self.machineLearningModel = machineLearningModel
 
@@ -21,12 +23,16 @@ class ShootingSeverityPredictionService:
         """
         model = self.machineLearningModel.load_model()
         dateCycle = DateCycle(date)
-
-        return model.predict(
-            [[
+        x = [[
                 dateCycle.dayofWeek,
                 dateCycle.month,
                 dateCycle.periodOfTheDay,
                 latitude,
                 longitude
-            ]])[0]
+            ]]
+        print(f"Previsão com os dados: {x}")
+        if (self.machineLearningModel.hasScaler()):
+            scaler = self.machineLearningModel.load_scaler()
+            x = scaler.transform(x)
+        print(f"Dados transformados: {x}")
+        return model.predict(x)[0]

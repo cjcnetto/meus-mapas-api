@@ -10,7 +10,7 @@ from logger import logger
 # Inicializa o serviço de previsão e o serviço de mapa
 # define aqui o modelo
 model = ShootingSeverityMachineLearnModel(
-    AvailableModels.METADATA_MODEL_CART_ORIG)
+    AvailableModels.METADATA_MODEL_CART_NORM)
 prediction = ShootingSeverityPredictionService(model)
 
 map_service = MapService(
